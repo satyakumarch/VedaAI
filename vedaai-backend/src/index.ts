@@ -1,0 +1,110 @@
+// ============================================================
+// VedaAI Backend - Main Entry Point
+// ============================================================
+import 'express-async-errors';
+import dotenv from 'dotenv';
+dotenv.config();
+
+import http from 'http';
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
+
+import { config } from './config';
+import { connectDatabase } from './config/database';
+import { getRedisClient } from './config/redis';
+import { initSocketServer } from './websocket/socketManager';
+import { errorHandler, notFound } from './middleware/errorHandler';
+import { logger } from './utils/logger';
+
+// Routes
+import authRoutes from './routes/auth';
+import assignmentRoutes from './routes/assignments';
+import paperRoutes from './routes/papers';
+
+const app = express();
+const httpServer = http.createServer(app);
+
+// ── Security & Middleware ────────────────────────────────────
+app.use(helmet());
+app.use(
+  cors({
+    origin: config.cors.origin,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
+app.use(compression());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(morgan(config.env === 'production' ? 'combined' : 'dev'));
+
+// Rate limiting — relaxed for development
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: config.env === 'production' ? 100 : 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many requests, please try again later' },
+  skip: () => config.env === 'development', // skip entirely in dev
+});
+app.use('/api', limiter);
+
+// ── Health Check ─────────────────────────────────────────────
+app.get('/health', (_req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    env: config.env,
+  });
+});
+
+// ── API Routes ───────────────────────────────────────────────
+app.use('/api/auth', authRoutes);
+app.use('/api/assignments', assignmentRoutes);
+app.use('/api/papers', paperRoutes);
+
+// ── Error Handling ───────────────────────────────────────────
+app.use(notFound);
+app.use(errorHandler);
+
+// ── Bootstrap ────────────────────────────────────────────────
+const bootstrap = async (): Promise<void> => {
+  try {
+    await connectDatabase();
+
+    // Redis is optional — server works without it (no queue/cache)
+    try {
+      getRedisClient();
+    } catch (redisErr) {
+      logger.warn('Redis unavailable — queue and cache disabled:', redisErr);
+    }
+
+    initSocketServer(httpServer);
+
+    httpServer.listen(config.port, () => {
+      logger.info(`🚀 VedaAI Backend running on port ${config.port} [${config.env}]`);
+      logger.info(`📡 WebSocket server ready`);
+    });
+  } catch (error) {
+    logger.error('Failed to start server:', error);
+    process.exit(1);
+  }
+};
+
+bootstrap();
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received. Shutting down gracefully...');
+  httpServer.close(() => {
+    logger.info('HTTP server closed');
+    process.exit(0);
+  });
+});
+
+export default app;

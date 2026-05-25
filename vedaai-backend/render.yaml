@@ -1,10 +1,13 @@
 services:
-  # Main API Server
+  # ── Main API Server ──────────────────────────────────────
   - type: web
     name: vedaai-api
     env: node
+    region: oregon
+    plan: free
     buildCommand: npm install && npm run build
-    startCommand: npm start
+    startCommand: node dist/index.js
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
@@ -16,17 +19,33 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: GROQ_API_KEY
+        sync: false
       - key: OPENAI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
         sync: false
       - key: OPENAI_MODEL
         value: gpt-4o-mini
       - key: CORS_ORIGIN
         sync: false
+      - key: MAX_FILE_SIZE_MB
+        value: 10
+      - key: QUEUE_CONCURRENCY
+        value: 2
+      - key: QUEUE_ATTEMPTS
+        value: 3
+      - key: QUEUE_BACKOFF_DELAY
+        value: 5000
 
-  # AI Worker
+  # ── AI Worker ────────────────────────────────────────────
   - type: worker
     name: vedaai-worker
     env: node
+    region: oregon
+    plan: free
     buildCommand: npm install && npm run build
     startCommand: node dist/workers/aiWorker.js
     envVars:
@@ -36,7 +55,17 @@ services:
         sync: false
       - key: REDIS_URL
         sync: false
+      - key: GROQ_API_KEY
+        sync: false
       - key: OPENAI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
         sync: false
       - key: OPENAI_MODEL
         value: gpt-4o-mini
+      - key: QUEUE_CONCURRENCY
+        value: 2
+      - key: QUEUE_ATTEMPTS
+        value: 3
+      - key: QUEUE_BACKOFF_DELAY
+        value: 5000

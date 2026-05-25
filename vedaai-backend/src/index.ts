@@ -32,7 +32,21 @@ const httpServer = http.createServer(app);
 app.use(helmet());
 app.use(
   cors({
-    origin: config.cors.origin,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, Postman)
+      if (!origin) return callback(null, true);
+
+      const allowed = config.cors.origin
+        .split(',')
+        .map(o => o.trim())
+        .filter(Boolean);
+
+      if (allowed.includes(origin) || allowed.includes('*')) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS: origin ${origin} not allowed`));
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],

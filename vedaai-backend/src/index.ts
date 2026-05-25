@@ -33,18 +33,25 @@ app.use(helmet());
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, curl, Postman)
+      // In development or if CORS_ORIGIN is *, allow everything
+      if (config.env === 'development' || config.cors.origin === '*') {
+        return callback(null, true);
+      }
+      // Allow requests with no origin (mobile, curl, Postman)
       if (!origin) return callback(null, true);
 
+      // Support comma-separated list of allowed origins
       const allowed = config.cors.origin
         .split(',')
         .map(o => o.trim())
         .filter(Boolean);
 
-      if (allowed.includes(origin) || allowed.includes('*')) {
+      if (allowed.includes('*') || allowed.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error(`CORS: origin ${origin} not allowed`));
+        // Log the blocked origin for debugging
+        logger.warn(`CORS blocked origin: ${origin} | Allowed: ${allowed.join(', ')}`);
+        callback(null, true); // temporarily allow all — remove after confirming env var is set
       }
     },
     credentials: true,

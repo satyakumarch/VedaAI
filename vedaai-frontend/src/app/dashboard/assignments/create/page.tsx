@@ -93,7 +93,7 @@ export default function CreateAssignmentPage() {
     ].filter(Boolean).join('\n\n');
 
     // Unique question types from rows
-    const questionTypes = [...new Set(rows.map(r => r.type))];
+    const questionTypes = Array.from(new Set(rows.map(r => r.type)));
 
     const formData = new FormData();
     formData.append('title',                title.trim());

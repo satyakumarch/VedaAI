@@ -24,6 +24,7 @@ import { logger } from './utils/logger';
 import authRoutes from './routes/auth';
 import assignmentRoutes from './routes/assignments';
 import paperRoutes from './routes/papers';
+import groupRoutes from './routes/groups';
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -88,6 +89,7 @@ app.get('/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/papers', paperRoutes);
+app.use('/api/groups', groupRoutes);
 
 // ── Error Handling ───────────────────────────────────────────
 app.use(notFound);

@@ -10,6 +10,8 @@ import {
   BookOpen,
   Settings,
   Plus,
+  Home,
+  LogOut,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useAssignmentStore } from '@/store/assignmentStore';
@@ -96,6 +98,15 @@ export default function Sidebar() {
 
       {/* ── Settings + User ── */}
       <div className="px-3 pb-4 space-y-1">
+        {/* Back to Home button */}
+        <Link
+          href="/"
+          className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[13px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+        >
+          <Home className="w-[15px] h-[15px]" />
+          Back to Home
+        </Link>
+
         <Link
           href="/dashboard/settings"
           className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[13px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
@@ -104,7 +115,7 @@ export default function Sidebar() {
           Settings
         </Link>
 
-        {/* User card — matches the "Delhi Public School" card in design */}
+        {/* User card */}
         <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-muted/60 border border-border">
           <div className="w-9 h-9 rounded-full bg-orange-100 border-2 border-orange-200 flex items-center justify-center shrink-0">
             <span className="text-orange-600 font-bold text-sm leading-none">
@@ -121,10 +132,10 @@ export default function Sidebar() {
           </div>
           <button
             onClick={logout}
-            className="text-[11px] text-muted-foreground hover:text-destructive transition-colors shrink-0"
+            className="text-[11px] text-muted-foreground hover:text-destructive transition-colors shrink-0 p-1 rounded hover:bg-destructive/10"
             title="Logout"
           >
-            ✕
+            <LogOut className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

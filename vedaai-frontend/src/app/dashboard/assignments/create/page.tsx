@@ -1,11 +1,10 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Upload, Plus, Minus, X, ChevronDown, Mic, ArrowLeft, ArrowRight, FileText,
+  Plus, Minus, X, ChevronDown, Mic, ArrowLeft, ArrowRight,
 } from 'lucide-react';
 import TopBar from '@/components/layout/TopBar';
 import { useAssignmentStore } from '@/store/assignmentStore';
@@ -46,20 +45,7 @@ export default function CreateAssignmentPage() {
   const [topic,        setTopic]        = useState('');
   const [dueDate,      setDueDate]      = useState('');
   const [instructions, setInstructions] = useState('');
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [rows,         setRows]         = useState<QuestionRow[]>([makeRow()]);
-
-  /* ── Dropzone ── */
-  const onDrop = useCallback((files: File[]) => {
-    if (files[0]) setUploadedFile(files[0]);
-  }, []);
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: { 'application/pdf': ['.pdf'], 'text/plain': ['.txt'] },
-    maxFiles: 1,
-    maxSize: 10 * 1024 * 1024,
-    onDropRejected: () => toast.error('Only PDF/TXT files up to 10 MB'),
-  });
 
   /* ── Row helpers ── */
   const updateRow = (id: string, field: keyof QuestionRow, value: string | number) =>
@@ -73,13 +59,12 @@ export default function CreateAssignmentPage() {
 
   /* ── Submit ── */
   const handleSubmit = async () => {
-    if (!title.trim())   { toast.error('Assignment title is required'); return; }
-    if (!subject.trim()) { toast.error('Subject is required'); return; }
-    if (!topic.trim())   { toast.error('Topic is required'); return; }
-    if (!dueDate)        { toast.error('Due date is required'); return; }
+    if (!title.trim())      { toast.error('Assignment title is required'); return; }
+    if (!subject.trim())    { toast.error('Subject is required'); return; }
+    if (!topic.trim())      { toast.error('Topic is required'); return; }
+    if (!dueDate)           { toast.error('Due date is required'); return; }
     if (totalQuestions < 1) { toast.error('Add at least one question'); return; }
 
-    // Build a rich instructions string from the row breakdown
     const rowDetail = rows
       .map(r => {
         const label = QUESTION_TYPE_OPTIONS.find(o => o.value === r.type)?.label ?? r.type;
@@ -92,20 +77,18 @@ export default function CreateAssignmentPage() {
       `Question breakdown: ${rowDetail}`,
     ].filter(Boolean).join('\n\n');
 
-    // Unique question types from rows
     const questionTypes = Array.from(new Set(rows.map(r => r.type)));
 
     const formData = new FormData();
-    formData.append('title',                title.trim());
-    formData.append('subject',              subject.trim());
-    formData.append('topic',                topic.trim());
-    formData.append('dueDate',              dueDate);
-    formData.append('numberOfQuestions',    String(totalQuestions));
-    formData.append('totalMarks',           String(totalMarks));
-    formData.append('questionTypes',        JSON.stringify(questionTypes));
+    formData.append('title',                  title.trim());
+    formData.append('subject',                subject.trim());
+    formData.append('topic',                  topic.trim());
+    formData.append('dueDate',                dueDate);
+    formData.append('numberOfQuestions',      String(totalQuestions));
+    formData.append('totalMarks',             String(totalMarks));
+    formData.append('questionTypes',          JSON.stringify(questionTypes));
     formData.append('difficultyDistribution', JSON.stringify({ easy: 40, medium: 40, hard: 20 }));
-    formData.append('instructions',         fullInstructions);
-    if (uploadedFile) formData.append('file', uploadedFile);
+    formData.append('instructions',           fullInstructions);
 
     try {
       const assignment = await createAssignment(formData);
@@ -113,14 +96,12 @@ export default function CreateAssignmentPage() {
       router.push(`/dashboard/assignments/${assignment._id}/generating`);
     } catch (err: unknown) {
       const apiErr = err as { response?: { data?: { message?: string; errors?: { field: string; message: string }[] } } };
-      const serverMsg = apiErr?.response?.data?.message;
-      const errors    = apiErr?.response?.data?.errors;
+      const errors = apiErr?.response?.data?.errors;
       if (errors?.length) {
         errors.forEach(e => toast.error(`${e.field}: ${e.message}`));
       } else {
-        toast.error(serverMsg ?? 'Failed to create assignment. Check backend is running.');
+        toast.error(apiErr?.response?.data?.message ?? 'Failed to create assignment. Check backend is running.');
       }
-      console.error('Create assignment error:', err);
     }
   };
 
@@ -149,7 +130,6 @@ export default function CreateAssignmentPage() {
         <div className="px-8 pb-28">
           <div className="bg-card border border-border rounded-2xl p-8 max-w-2xl mx-auto space-y-6 shadow-sm">
 
-            {/* Section heading */}
             <div>
               <h2 className="font-bold text-foreground">Assignment Details</h2>
               <p className="text-xs text-muted-foreground mt-0.5">Basic information about your assignment</p>
@@ -174,57 +154,15 @@ export default function CreateAssignmentPage() {
               </Field>
             </div>
 
-            {/* File upload */}
-            <div
-              {...getRootProps()}
-              className={cn(
-                'border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors',
-                isDragActive ? 'border-orange-400 bg-orange-50 dark:bg-orange-950/10' : 'border-border hover:border-orange-300'
-              )}
-            >
-              <input {...getInputProps()} />
-              <AnimatePresence mode="wait">
-                {uploadedFile ? (
-                  <motion.div key="file" initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                    className="flex items-center justify-center gap-3">
-                    <FileText className="w-6 h-6 text-orange-500" />
-                    <span className="text-sm font-medium text-foreground">{uploadedFile.name}</span>
-                    <button type="button" onClick={e => { e.stopPropagation(); setUploadedFile(null); }}
-                      className="p-1 rounded-full hover:bg-muted">
-                      <X className="w-4 h-4 text-muted-foreground" />
-                    </button>
-                  </motion.div>
-                ) : (
-                  <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                    <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-                    <p className="text-sm font-medium text-foreground mb-1">
-                      Choose a File or drag &amp; drop it here
-                    </p>
-                    <p className="text-xs text-muted-foreground mb-4">PDF, TXT, upto 10MB</p>
-                    <button type="button"
-                      className="px-5 py-1.5 border border-border rounded-lg text-sm font-medium hover:bg-accent transition-colors">
-                      Browse Files
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-            <p className="text-xs text-muted-foreground text-center -mt-4">
-              Upload reference material for better AI output (optional)
-            </p>
-
             {/* Due Date */}
             <Field label="Due Date" required>
-              <div className="relative">
-                <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
-                  className={cn(inputCls, 'text-muted-foreground')} />
-              </div>
+              <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                className={cn(inputCls, 'text-muted-foreground')} />
             </Field>
 
             {/* ── Question type rows ── */}
             <div className="space-y-3">
-              {/* Column headers */}
               <div className="grid grid-cols-[1fr_32px_90px_90px] gap-3 items-center">
                 <span className="text-sm font-semibold text-foreground">Question Type</span>
                 <span />
@@ -244,7 +182,6 @@ export default function CreateAssignmentPage() {
                 ))}
               </AnimatePresence>
 
-              {/* Add row */}
               <button type="button" onClick={addRow}
                 className="flex items-center gap-2 text-sm font-semibold text-foreground hover:text-orange-500 transition-colors mt-1">
                 <span className="w-7 h-7 rounded-full bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 flex items-center justify-center shrink-0">
@@ -253,7 +190,6 @@ export default function CreateAssignmentPage() {
                 Add Question Type
               </button>
 
-              {/* Totals */}
               <div className="text-right text-sm space-y-0.5 pt-3 border-t border-border">
                 <p><span className="text-muted-foreground">Total Questions : </span><span className="font-semibold">{totalQuestions}</span></p>
                 <p><span className="text-muted-foreground">Total Marks : </span><span className="font-semibold">{totalMarks}</span></p>
@@ -292,7 +228,6 @@ export default function CreateAssignmentPage() {
   );
 }
 
-/* ── Question Type Row ── */
 function QuestionTypeRow({ row, onChange, onRemove, canRemove }: {
   row: QuestionRow;
   onChange: (field: keyof QuestionRow, val: string | number) => void;
@@ -302,7 +237,6 @@ function QuestionTypeRow({ row, onChange, onRemove, canRemove }: {
   return (
     <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
       className="grid grid-cols-[1fr_32px_90px_90px] gap-3 items-center">
-      {/* Type selector */}
       <div className="relative">
         <select value={row.type} onChange={e => onChange('type', e.target.value)}
           className="w-full appearance-none border border-border rounded-lg px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-orange-400/40 pr-8">
@@ -312,20 +246,16 @@ function QuestionTypeRow({ row, onChange, onRemove, canRemove }: {
         </select>
         <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
       </div>
-      {/* Remove */}
       <button type="button" onClick={onRemove} disabled={!canRemove}
         className="p-1 rounded hover:bg-muted transition-colors disabled:opacity-30 flex items-center justify-center">
         <X className="w-3.5 h-3.5 text-muted-foreground" />
       </button>
-      {/* Count stepper */}
       <Stepper value={row.count} min={1} max={50} onChange={v => onChange('count', v)} />
-      {/* Marks stepper */}
       <Stepper value={row.marks} min={1} max={20} onChange={v => onChange('marks', v)} />
     </motion.div>
   );
 }
 
-/* ── Stepper ── */
 function Stepper({ value, min, max, onChange }: {
   value: number; min: number; max: number; onChange: (v: number) => void;
 }) {
@@ -344,7 +274,6 @@ function Stepper({ value, min, max, onChange }: {
   );
 }
 
-/* ── Field wrapper ── */
 function Field({ label, hint, required, children }: {
   label: string; hint?: string; required?: boolean; children: React.ReactNode;
 }) {

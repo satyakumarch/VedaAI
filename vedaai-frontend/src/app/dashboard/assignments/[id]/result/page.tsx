@@ -170,7 +170,7 @@ export default function ResultPage() {
 /* ── Paper Section ── */
 function PaperSection({ section, startNum }: { section: Section; startNum: number }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <h2 className="text-base font-bold text-gray-900 dark:text-foreground text-center">
         {section.title}
       </h2>
@@ -182,11 +182,17 @@ function PaperSection({ section, startNum }: { section: Section; startNum: numbe
           {section.instruction}
         </p>
       </div>
-      <ol className="space-y-2.5 list-none" start={startNum}>
+      {/* Questions with line gaps */}
+      <div className="space-y-0">
         {section.questions.map((q, qi) => (
-          <QuestionItem key={qi} question={q} number={startNum + qi} />
+          <div key={qi}>
+            <QuestionItem question={q} number={startNum + qi} />
+            {qi < section.questions.length - 1 && (
+              <div className="border-b border-dashed border-gray-200 dark:border-border my-4" />
+            )}
+          </div>
         ))}
-      </ol>
+      </div>
     </div>
   );
 }
@@ -200,21 +206,51 @@ function QuestionItem({ question, number }: { question: Question; number: number
     : 'Challenging';
 
   return (
-    <li className="text-sm text-gray-800 dark:text-foreground leading-relaxed">
-      <span>
-        {number}. [{diffLabel}] {question.question}{' '}
-        <span className="text-gray-500 dark:text-muted-foreground">
-          [{question.marks} {question.marks === 1 ? 'Mark' : 'Marks'}]
+    <div className="py-1">
+      {/* Question number + text */}
+      <div className="flex items-start gap-2">
+        <span className="font-semibold text-sm text-gray-900 dark:text-foreground shrink-0 w-7">
+          {number}.
         </span>
-      </span>
-      {question.options && question.options.length > 0 && (
-        <div className="ml-6 mt-1.5 space-y-1">
-          {question.options.map((opt, oi) => (
-            <p key={oi} className="text-sm text-gray-600 dark:text-muted-foreground">{opt}</p>
-          ))}
+        <div className="flex-1 space-y-2">
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-sm text-gray-800 dark:text-foreground leading-relaxed flex-1">
+              [{diffLabel}] {question.question}
+            </p>
+            <span className="text-xs font-semibold text-gray-500 dark:text-muted-foreground shrink-0 whitespace-nowrap">
+              [{question.marks} {question.marks === 1 ? 'Mark' : 'Marks'}]
+            </span>
+          </div>
+
+          {/* MCQ Options */}
+          {question.options && question.options.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 ml-1 mt-2">
+              {question.options.map((opt, oi) => (
+                <p key={oi} className="text-sm text-gray-600 dark:text-muted-foreground py-0.5">
+                  {opt}
+                </p>
+              ))}
+            </div>
+          )}
+
+          {/* Answer lines for short/long answer */}
+          {(question.type === 'short_answer' || question.type === 'fill_blanks') && (
+            <div className="mt-3 space-y-2">
+              {[1,2,3].map(i => (
+                <div key={i} className="border-b border-gray-300 dark:border-border w-full" />
+              ))}
+            </div>
+          )}
+          {question.type === 'long_answer' && (
+            <div className="mt-3 space-y-2">
+              {[1,2,3,4,5,6].map(i => (
+                <div key={i} className="border-b border-gray-300 dark:border-border w-full" />
+              ))}
+            </div>
+          )}
         </div>
-      )}
-    </li>
+      </div>
+    </div>
   );
 }
 

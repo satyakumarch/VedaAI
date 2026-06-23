@@ -1,49 +1,74 @@
 // ============================================================
 // VedaAI Backend - Redis Connection (ioredis)
+// Gracefully handles Redis unavailability
 // ============================================================
 import Redis from 'ioredis';
 import { config } from './index';
 import { logger } from '../utils/logger';
 
 let redisClient: Redis | null = null;
+let redisAvailable = true;
 
 export const getRedisClient = (): Redis => {
   if (!redisClient) {
     redisClient = new Redis(config.redis.url, {
-      maxRetriesPerRequest: null, // required by BullMQ
+      maxRetriesPerRequest: null,
       enableReadyCheck: false,
       lazyConnect: true,
+      retryStrategy: (times) => {
+        if (times > 3) {
+          redisAvailable = false;
+          logger.warn('Redis unavailable after 3 retries — cache/queue disabled');
+          return null; // stop retrying
+        }
+        return Math.min(times * 1000, 3000);
+      },
     });
 
-    redisClient.on('connect', () => logger.info('✅ Redis connected'));
-    redisClient.on('error', (err) => logger.error('Redis error:', err));
-    redisClient.on('close', () => logger.warn('Redis connection closed'));
+    redisClient.on('connect',  ()    => { redisAvailable = true;  logger.info('✅ Redis connected'); });
+    redisClient.on('error',    (err) => { redisAvailable = false; logger.error('Redis error:', err.message); });
+    redisClient.on('close',    ()    => { redisAvailable = false; logger.warn('Redis connection closed'); });
   }
   return redisClient;
 };
 
-// Separate connection for BullMQ (needs maxRetriesPerRequest: null)
+export const isRedisAvailable = (): boolean => redisAvailable;
+
+// Separate connection for BullMQ
 export const getBullMQConnection = (): Redis => {
   return new Redis(config.redis.url, {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
+    retryStrategy: (times) => {
+      if (times > 3) return null;
+      return Math.min(times * 1000, 3000);
+    },
   });
 };
 
-// Cache helpers
+// Cache helpers — silently skip if Redis is down
 export const cacheSet = async (key: string, value: unknown, ttlSeconds = 300): Promise<void> => {
-  const client = getRedisClient();
-  await client.setex(key, ttlSeconds, JSON.stringify(value));
+  if (!redisAvailable) return;
+  try {
+    const client = getRedisClient();
+    await client.setex(key, ttlSeconds, JSON.stringify(value));
+  } catch { /* non-fatal */ }
 };
 
 export const cacheGet = async <T>(key: string): Promise<T | null> => {
-  const client = getRedisClient();
-  const data = await client.get(key);
-  if (!data) return null;
-  return JSON.parse(data) as T;
+  if (!redisAvailable) return null;
+  try {
+    const client = getRedisClient();
+    const data = await client.get(key);
+    if (!data) return null;
+    return JSON.parse(data) as T;
+  } catch { return null; }
 };
 
 export const cacheDel = async (key: string): Promise<void> => {
-  const client = getRedisClient();
-  await client.del(key);
+  if (!redisAvailable) return;
+  try {
+    const client = getRedisClient();
+    await client.del(key);
+  } catch { /* non-fatal */ }
 };

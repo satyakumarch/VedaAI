@@ -31,6 +31,7 @@ export const useAuthStore = create<AuthState>()(
         try {
           const { data } = await api.post('/auth/login', { email, password });
           const { token, user } = data.data;
+          // Write to both locations so axios interceptor finds it
           localStorage.setItem('vedaai_token', token);
           set({ user, token, isAuthenticated: true, isLoading: false });
         } catch (error) {
@@ -54,6 +55,7 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         localStorage.removeItem('vedaai_token');
+        localStorage.removeItem('vedaai-auth');
         set({ user: null, token: null, isAuthenticated: false });
       },
 

@@ -11,15 +11,17 @@ let redisAvailable = true;
 
 export const getRedisClient = (): Redis => {
   if (!redisClient) {
+    const isTLS = config.redis.url.startsWith('rediss://');
     redisClient = new Redis(config.redis.url, {
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
       lazyConnect: true,
+      tls: isTLS ? {} : undefined,
       retryStrategy: (times) => {
         if (times > 3) {
           redisAvailable = false;
           logger.warn('Redis unavailable after 3 retries — cache/queue disabled');
-          return null; // stop retrying
+          return null;
         }
         return Math.min(times * 1000, 3000);
       },
@@ -36,9 +38,11 @@ export const isRedisAvailable = (): boolean => redisAvailable;
 
 // Separate connection for BullMQ
 export const getBullMQConnection = (): Redis => {
+  const isTLS = config.redis.url.startsWith('rediss://');
   return new Redis(config.redis.url, {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
+    tls: isTLS ? {} : undefined,
     retryStrategy: (times) => {
       if (times > 3) return null;
       return Math.min(times * 1000, 3000);

@@ -28,6 +28,7 @@ interface QuestionPaperProps {
   isRegenerating?: boolean;
 }
 
+
 export default function QuestionPaper({
   paper,
   assignment,
@@ -36,6 +37,9 @@ export default function QuestionPaper({
 }: QuestionPaperProps) {
   const [copied, setCopied] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Set<number>>(new Set());
 
   const toggleSection = (idx: number) => {
@@ -124,8 +128,60 @@ export default function QuestionPaper({
             <Download className={cn('w-4 h-4', isDownloading && 'animate-bounce')} />
             {isDownloading ? 'Downloading...' : 'Download PDF'}
           </button>
+          <button
+            onClick={async () => {
+              setIsPreviewLoading(true);
+              try {
+                const response = await api.get(`/papers/${assignment._id}/download`, {
+                  responseType: 'blob',
+                });
+                const url = URL.createObjectURL(new Blob([response.data]));
+                setPreviewUrl(url);
+                setIsPreviewing(true);
+              } catch {
+                toast.error('Failed to load PDF preview');
+              } finally {
+                setIsPreviewLoading(false);
+              }
+            }}
+            disabled={isPreviewLoading}
+            className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-lg border border-border hover:bg-accent transition-colors disabled:opacity-50"
+          >
+            {isPreviewLoading ? 'Loading...' : 'Preview PDF'}
+          </button>
         </div>
       </motion.div>
+
+      {/* PDF Preview Modal */}
+      {isPreviewing && previewUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="w-full max-w-4xl h-[80vh] bg-card border border-border rounded-2xl overflow-hidden">
+            <div className="flex items-center justify-between p-3 border-b border-border">
+              <h3 className="text-sm font-semibold">PDF Preview — {assignment.title}</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (previewUrl) URL.revokeObjectURL(previewUrl);
+                    setPreviewUrl(null);
+                    setIsPreviewing(false);
+                  }}
+                  className="px-3 py-1 rounded-lg border border-border hover:bg-accent"
+                >
+                  Close
+                </button>
+                <a
+                  href={previewUrl}
+                  download={`${assignment.title.replace(/[^a-z0-9]/gi, '_')}_exam.pdf`}
+                  className="px-3 py-1 rounded-lg bg-veda-600 text-white hover:bg-veda-700"
+                >
+                  Download
+                </a>
+              </div>
+            </div>
+            <iframe src={previewUrl} className="w-full h-full" title="PDF preview" />
+          </div>
+        </div>
+      )}
 
       {/* Paper Header */}
       <motion.div
@@ -226,6 +282,7 @@ export default function QuestionPaper({
           })}
         </div>
       </motion.div>
+
     </div>
   );
 }

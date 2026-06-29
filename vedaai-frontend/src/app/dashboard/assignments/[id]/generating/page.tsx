@@ -59,13 +59,17 @@ export default function GeneratingPage() {
   useEffect(() => {
     if (doneRef.current) return;
 
-    // Animate progress bar even without socket events
+    // Animate progress bar smoothly — faster ticks
     const fakeProgress = setInterval(() => {
       setLocalProgress(prev => {
-        if (prev >= 88) { clearInterval(fakeProgress); return prev; }
-        return prev + Math.random() * 4;
+        if (prev >= 86) { clearInterval(fakeProgress); return prev; }
+        // accelerate early, slow near 86%
+        const increment = prev < 40 ? 4 + Math.random() * 5
+                        : prev < 70 ? 2 + Math.random() * 3
+                        : 0.5 + Math.random() * 1.5;
+        return Math.min(86, prev + increment);
       });
-    }, 1800);
+    }, 500); // tick every 500ms for smooth feel
 
     // Poll assignment status
     const poll = async () => {
@@ -92,7 +96,7 @@ export default function GeneratingPage() {
       } catch { /* ignore poll errors */ }
     };
 
-    pollRef.current = setInterval(poll, 3000);
+    pollRef.current = setInterval(poll, 2000);
     poll(); // immediate first check
 
     return () => {
@@ -106,7 +110,7 @@ export default function GeneratingPage() {
     if (localStatus === 'completed') {
       const t = setTimeout(() => {
         router.push(`/dashboard/assignments/${assignmentId}/result`);
-      }, 1800);
+      }, 800);
       return () => clearTimeout(t);
     }
   }, [localStatus, assignmentId, router]);

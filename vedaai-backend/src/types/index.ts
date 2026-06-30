@@ -37,6 +37,20 @@ export interface IGeneratedPaperData {
   sections: ISection[];
 }
 
+export interface IQAEdit {
+  sectionIndex: number;
+  questionIndex: number;
+  field: 'question' | 'options' | 'answer' | 'instruction' | 'title';
+  before: string | string[] | null;
+  after: string | string[] | null;
+  note?: string;
+}
+
+export interface IGeneratedPaperResult {
+  sections: ISection[];
+  qaReport?: IQAEdit[];
+}
+
 export interface JobProgressPayload {
   assignmentId: string;
   status: AssignmentStatus;

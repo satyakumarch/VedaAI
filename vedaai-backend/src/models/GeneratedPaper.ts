@@ -15,6 +15,14 @@ export interface IGeneratedPaper extends Document {
     medium: number;
     hard: number;
   };
+  qaReport?: {
+    sectionIndex: number;
+    questionIndex: number;
+    field: string;
+    before: string | string[] | null;
+    after: string | string[] | null;
+    note?: string;
+  }[];
   generatedAt: Date;
   regenerationCount: number;
   createdAt: Date;
@@ -75,6 +83,14 @@ const GeneratedPaperSchema = new Schema<IGeneratedPaper>(
     },
     generatedAt: { type: Date, default: Date.now },
     regenerationCount: { type: Number, default: 0 },
+    qaReport: [{
+      sectionIndex: { type: Number },
+      questionIndex: { type: Number },
+      field: { type: String },
+      before: { type: Schema.Types.Mixed },
+      after: { type: Schema.Types.Mixed },
+      note: { type: String },
+    }],
   },
   {
     timestamps: true,

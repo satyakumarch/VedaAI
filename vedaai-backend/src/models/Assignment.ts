@@ -17,6 +17,7 @@ export interface IAssignment extends Document {
   instructions?: string;
   uploadedContent?: string;   // extracted text from PDF/TXT
   uploadedFileName?: string;
+  usePolish?: boolean;
   status: AssignmentStatus;
   jobId?: string;
   createdAt: Date;
@@ -84,6 +85,10 @@ const AssignmentSchema = new Schema<IAssignment>(
     },
     uploadedFileName: {
       type: String,
+    },
+    usePolish: {
+      type: Boolean,
+      default: false,
     },
     status: {
       type: String,

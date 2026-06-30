@@ -33,6 +33,7 @@ export const config = {
   openai: {
     apiKey: optional('OPENAI_API_KEY', ''),
     model: optional('OPENAI_MODEL', 'gpt-4o-mini'),
+    polish: optional('OPENAI_POLISH', 'false') === 'true',
   },
 
   cors: {

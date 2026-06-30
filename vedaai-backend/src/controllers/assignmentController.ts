@@ -118,6 +118,7 @@ export const createAssignment = async (req: Request, res: Response): Promise<voi
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       logger.error(`Inline generation failed for ${assignment._id}: ${msg}`);
+      logger.error('Full error:', err);
       await Assignment.findByIdAndUpdate(assignment._id, { status: 'failed' });
       emitToAssignment(assignment._id.toString(), 'generation_failed', {
         assignmentId: assignment._id.toString(),

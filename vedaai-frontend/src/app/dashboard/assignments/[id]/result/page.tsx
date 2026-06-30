@@ -113,6 +113,12 @@ export default function ResultPage() {
                 <p className="text-sm text-gray-700 dark:text-muted-foreground">
                   Topic: {assignment.topic}
                 </p>
+                {/* Extract class name from instructions if present */}
+                {assignment.instructions?.match(/Class:\s*(.+)/)?.[1] && (
+                  <p className="text-sm font-semibold text-gray-800 dark:text-foreground">
+                    Class: {assignment.instructions.match(/Class:\s*(.+)/)?.[1]}
+                  </p>
+                )}
               </div>
 
               {/* Meta row */}
@@ -129,15 +135,15 @@ export default function ResultPage() {
               </div>
 
               {/* Student fields */}
-              <div className="px-10 py-5 border-b border-border space-y-2 text-sm text-gray-800 dark:text-foreground">
-                <p>Name: <span className="inline-block w-44 border-b border-gray-400 dark:border-border ml-1 align-bottom" /></p>
-                <p>Roll Number: <span className="inline-block w-32 border-b border-gray-400 dark:border-border ml-1 align-bottom" /></p>
-                <p>
-                  Class:{' '}
-                  <span className="inline-block w-20 border-b border-gray-400 dark:border-border ml-1 align-bottom" />
-                  {' '}Section:{' '}
-                  <span className="inline-block w-16 border-b border-gray-400 dark:border-border ml-1 align-bottom" />
-                </p>
+              <div className="px-10 py-5 border-b border-border text-sm text-gray-800 dark:text-foreground">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-2">
+                  <p>Name: <span className="inline-block w-36 border-b border-gray-400 dark:border-border ml-1 align-bottom" /></p>
+                  <p>Class: <span className="inline-block w-24 border-b border-gray-400 dark:border-border ml-1 align-bottom" />
+                    <span className="ml-3">Section: <span className="inline-block w-16 border-b border-gray-400 dark:border-border ml-1 align-bottom" /></span>
+                  </p>
+                  <p>Roll No.: <span className="inline-block w-28 border-b border-gray-400 dark:border-border ml-1 align-bottom" /></p>
+                  <p>Date: <span className="inline-block w-28 border-b border-gray-400 dark:border-border ml-1 align-bottom" /></p>
+                </div>
               </div>
 
               {/* Sections */}
@@ -170,27 +176,17 @@ export default function ResultPage() {
 /* ── Paper Section ── */
 function PaperSection({ section, startNum }: { section: Section; startNum: number }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       <h2 className="text-base font-bold text-gray-900 dark:text-foreground text-center">
         {section.title}
       </h2>
+      <p className="text-sm font-semibold text-gray-800 dark:text-foreground">
+        {section.instruction}
+      </p>
+      {/* No gap between questions */}
       <div>
-        <p className="text-sm font-semibold text-gray-800 dark:text-foreground">
-          {section.instruction.split('.')[0]}
-        </p>
-        <p className="text-xs text-gray-500 dark:text-muted-foreground italic">
-          {section.instruction}
-        </p>
-      </div>
-      {/* Questions with line gaps */}
-      <div className="space-y-0">
         {section.questions.map((q, qi) => (
-          <div key={qi}>
-            <QuestionItem question={q} number={startNum + qi} />
-            {qi < section.questions.length - 1 && (
-              <div className="border-b border-dashed border-gray-200 dark:border-border my-4" />
-            )}
-          </div>
+          <QuestionItem key={qi} question={q} number={startNum + qi} />
         ))}
       </div>
     </div>
@@ -199,56 +195,31 @@ function PaperSection({ section, startNum }: { section: Section; startNum: numbe
 
 /* ── Question Item ── */
 function QuestionItem({ question, number }: { question: Question; number: number }) {
-  const diffLabel = question.difficulty === 'easy'
-    ? 'Easy'
-    : question.difficulty === 'medium'
-    ? 'Moderate'
-    : 'Challenging';
+  const diffLabel = question.difficulty === 'easy' ? 'Easy'
+    : question.difficulty === 'medium' ? 'Moderate' : 'Challenging';
 
   return (
-    <div className="py-1">
-      {/* Question number + text */}
-      <div className="flex items-start gap-2">
-        <span className="font-semibold text-sm text-gray-900 dark:text-foreground shrink-0 w-7">
-          {number}.
+    <div className="flex items-start gap-1.5 py-0.5">
+      <span className="text-sm text-gray-900 dark:text-foreground shrink-0 font-medium w-6 text-right">
+        {number}.
+      </span>
+      <div className="flex-1">
+        <span className="text-sm text-gray-800 dark:text-foreground leading-snug">
+          [{diffLabel}] {question.question}{' '}
+          <span className="text-gray-500 dark:text-muted-foreground text-xs">
+            [{question.marks}M]
+          </span>
         </span>
-        <div className="flex-1 space-y-2">
-          <div className="flex items-start justify-between gap-3">
-            <p className="text-sm text-gray-800 dark:text-foreground leading-relaxed flex-1">
-              [{diffLabel}] {question.question}
-            </p>
-            <span className="text-xs font-semibold text-gray-500 dark:text-muted-foreground shrink-0 whitespace-nowrap">
-              [{question.marks} {question.marks === 1 ? 'Mark' : 'Marks'}]
-            </span>
+        {/* MCQ Options — inline, no extra space */}
+        {question.options && question.options.length > 0 && (
+          <div className="flex flex-wrap gap-x-6 gap-y-0 mt-0.5 ml-0">
+            {question.options.map((opt, oi) => (
+              <span key={oi} className="text-sm text-gray-600 dark:text-muted-foreground">
+                {opt}
+              </span>
+            ))}
           </div>
-
-          {/* MCQ Options */}
-          {question.options && question.options.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 ml-1 mt-2">
-              {question.options.map((opt, oi) => (
-                <p key={oi} className="text-sm text-gray-600 dark:text-muted-foreground py-0.5">
-                  {opt}
-                </p>
-              ))}
-            </div>
-          )}
-
-          {/* Answer lines for short/long answer */}
-          {(question.type === 'short_answer' || question.type === 'fill_blanks') && (
-            <div className="mt-3 space-y-2">
-              {[1,2,3].map(i => (
-                <div key={i} className="border-b border-gray-300 dark:border-border w-full" />
-              ))}
-            </div>
-          )}
-          {question.type === 'long_answer' && (
-            <div className="mt-3 space-y-2">
-              {[1,2,3,4,5,6].map(i => (
-                <div key={i} className="border-b border-gray-300 dark:border-border w-full" />
-              ))}
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );

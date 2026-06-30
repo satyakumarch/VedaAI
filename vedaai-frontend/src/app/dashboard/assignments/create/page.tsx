@@ -43,6 +43,7 @@ export default function CreateAssignmentPage() {
   const [title,        setTitle]        = useState('');
   const [subject,      setSubject]      = useState('');
   const [topic,        setTopic]        = useState('');
+  const [className,    setClassName]    = useState('');
   const [dueDate,      setDueDate]      = useState('');
   const [instructions, setInstructions] = useState('');
   const [rows,         setRows]         = useState<QuestionRow[]>([makeRow()]);
@@ -62,6 +63,7 @@ export default function CreateAssignmentPage() {
     if (!title.trim())      { toast.error('Assignment title is required'); return; }
     if (!subject.trim())    { toast.error('Subject is required'); return; }
     if (!topic.trim())      { toast.error('Topic is required'); return; }
+    if (!className.trim())  { toast.error('Class name is required'); return; }
     if (!dueDate)           { toast.error('Due date is required'); return; }
     if (totalQuestions < 1) { toast.error('Add at least one question'); return; }
 
@@ -73,6 +75,7 @@ export default function CreateAssignmentPage() {
       .join(', ');
 
     const fullInstructions = [
+      className.trim() ? `Class: ${className.trim()}` : '',
       instructions.trim(),
       `Question breakdown: ${rowDetail}`,
     ].filter(Boolean).join('\n\n');
@@ -154,12 +157,18 @@ export default function CreateAssignmentPage() {
               </Field>
             </div>
 
-            {/* Due Date */}
-            <Field label="Due Date" required>
-              <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
-                className={cn(inputCls, 'text-muted-foreground')} />
-            </Field>
+            {/* Class Name + Due Date */}
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Class Name" required>
+                <input value={className} onChange={e => setClassName(e.target.value)}
+                  placeholder="e.g. Grade 8 / Class 10-A" className={inputCls} />
+              </Field>
+              <Field label="Due Date" required>
+                <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className={cn(inputCls, 'text-muted-foreground')} />
+              </Field>
+            </div>
 
             {/* ── Question type rows ── */}
             <div className="space-y-3">

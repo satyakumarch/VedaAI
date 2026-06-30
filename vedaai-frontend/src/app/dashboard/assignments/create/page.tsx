@@ -78,7 +78,7 @@ export default function CreateAssignmentPage() {
       className.trim() ? `Class: ${className.trim()}` : '',
       instructions.trim(),
       `Question breakdown: ${rowDetail}`,
-    ].filter(Boolean).join('\n\n');
+    ].filter(Boolean).join('\n\n').slice(0, 1500); // hard cap to avoid validation failure
 
     const questionTypes = Array.from(new Set(rows.map(r => r.type)));
 

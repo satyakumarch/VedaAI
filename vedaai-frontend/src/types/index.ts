@@ -23,6 +23,7 @@ export interface AssignmentFormData {
   difficultyDistribution: DifficultyDistribution;
   instructions?: string;
   file?: File | null;
+  usePolish?: boolean;
 }
 
 export interface Question {
@@ -55,6 +56,7 @@ export interface Assignment {
   totalMarks: number;
   difficultyDistribution: DifficultyDistribution;
   instructions?: string;
+  usePolish?: boolean;
   uploadedFileName?: string;
   status: AssignmentStatus;
   jobId?: string;

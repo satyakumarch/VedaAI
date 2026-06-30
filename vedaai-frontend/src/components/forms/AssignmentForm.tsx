@@ -49,6 +49,7 @@ const schema = z.object({
       message: 'Must sum to 100%',
     }),
   instructions: z.string().max(1000).optional(),
+  usePolish: z.boolean().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -84,6 +85,7 @@ export default function AssignmentForm() {
       totalMarks: draftForm.totalMarks,
       difficultyDistribution: draftForm.difficultyDistribution,
       instructions: draftForm.instructions,
+      usePolish: draftForm.usePolish ?? false,
     },
   });
 
@@ -126,6 +128,8 @@ export default function AssignmentForm() {
     Object.entries(values).forEach(([key, val]) => {
       if (key === 'difficultyDistribution' || key === 'questionTypes') {
         formData.append(key, JSON.stringify(val));
+      } else if (key === 'usePolish') {
+        formData.append(key, String(val ?? false));
       } else {
         formData.append(key, String(val));
       }
@@ -341,6 +345,13 @@ export default function AssignmentForm() {
             className={cn(inputClass(!!errors.instructions), 'resize-none')}
           />
         </FormField>
+
+        <div className="mt-4">
+          <label className="flex items-center gap-3">
+            <input type="checkbox" {...register('usePolish')} />
+            <span className="text-sm">Enable high-quality polish (slower)</span>
+          </label>
+        </div>
 
         {/* File Upload */}
         <div className="mt-5 space-y-2">

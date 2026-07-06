@@ -1,5 +1,6 @@
 // ============================================================
 // VedaAI Frontend - Socket.IO Client
+// Uses polling first (works everywhere), upgrades to websocket
 // ============================================================
 import { io, Socket } from 'socket.io-client';
 
@@ -7,12 +8,19 @@ let socket: Socket | null = null;
 
 export const getSocket = (): Socket => {
   if (!socket) {
-    socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000', {
-      transports: ['websocket', 'polling'],
+    const url = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
+
+    socket = io(url, {
+      // Start with polling — works through Vercel/proxies/firewalls
+      // Socket.IO will auto-upgrade to websocket if possible
+      transports: ['polling', 'websocket'],
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 2000,
+      timeout: 20000,
+      forceNew: false,
+      withCredentials: true,
     });
 
     socket.on('connect', () => {
@@ -24,7 +32,10 @@ export const getSocket = (): Socket => {
     });
 
     socket.on('connect_error', (err) => {
-      console.error('[Socket] Connection error:', err.message);
+      // Only log in development — suppress noisy errors in production
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[Socket] Connection issue:', err.message);
+      }
     });
   }
   return socket;

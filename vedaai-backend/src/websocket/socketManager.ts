@@ -12,13 +12,14 @@ let io: SocketServer | null = null;
 export const initSocketServer = (httpServer: HttpServer): SocketServer => {
   io = new SocketServer(httpServer, {
     cors: {
-      origin: config.cors.origin,
+      origin: '*',
       methods: ['GET', 'POST'],
       credentials: true,
     },
-    transports: ['websocket', 'polling'],
+    transports: ['polling', 'websocket'],
     pingTimeout: 60000,
     pingInterval: 25000,
+    allowUpgrades: true,
   });
 
   io.on('connection', (socket: Socket) => {

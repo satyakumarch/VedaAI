@@ -85,6 +85,21 @@ app.get('/health', (_req, res) => {
   });
 });
 
+// ── Keep-alive ping (prevents Render free tier sleep) ────────
+if (config.env === 'production') {
+  const SELF_URL = process.env.RENDER_EXTERNAL_URL ?? `http://localhost:${config.port}`;
+  setInterval(async () => {
+    try {
+      const http = await import('http');
+      const https = await import('https');
+      const url = new URL(`${SELF_URL}/health`);
+      const client = url.protocol === 'https:' ? https : http;
+      client.get(url.href, () => {}).on('error', () => {});
+    } catch { /* non-fatal */ }
+  }, 14 * 60 * 1000); // ping every 14 minutes
+  logger.info('✅ Keep-alive pinger started (every 14 min)');
+}
+
 // ── API Routes ───────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/assignments', assignmentRoutes);

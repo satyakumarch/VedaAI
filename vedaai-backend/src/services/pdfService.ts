@@ -1,303 +1,283 @@
 // ============================================================
 // VedaAI Backend - PDF Generation Service
-// Clean, robust exam-paper style PDF using pdf-lib
+// Clean exam-paper style — no gaps between questions
 // ============================================================
 import { PDFDocument, rgb, StandardFonts, PDFPage, PDFFont } from 'pdf-lib';
 import { IGeneratedPaper } from '../models/GeneratedPaper';
 import { IAssignment } from '../models/Assignment';
 import { logger } from '../utils/logger';
 
-// ── Page constants ──────────────────────────────────────────
-const PAGE_W  = 595.28;  // A4 width  (pt)
-const PAGE_H  = 841.89;  // A4 height (pt)
-const MARGIN  = 50;
-const CONTENT = PAGE_W - MARGIN * 2;
+const PAGE_W = 595.28;
+const PAGE_H = 841.89;
+const ML     = 45;   // left margin
+const MR     = 45;   // right margin
+const MT     = 40;   // top margin
+const MB     = 35;   // bottom margin
+const CW     = PAGE_W - ML - MR; // content width
 
-// ── Colors ──────────────────────────────────────────────────
 const C = {
-  black:    rgb(0,    0,    0),
-  dark:     rgb(0.1,  0.1,  0.1),
-  gray:     rgb(0.4,  0.4,  0.4),
-  light:    rgb(0.7,  0.7,  0.7),
-  bg:       rgb(0.96, 0.96, 0.96),
-  white:    rgb(1,    1,    1),
-  navy:     rgb(0.08, 0.18, 0.42),
-  orange:   rgb(0.9,  0.38, 0.08),
-  green:    rgb(0.1,  0.55, 0.25),
-  amber:    rgb(0.75, 0.55, 0.0),
-  red:      rgb(0.75, 0.1,  0.1),
+  navy:   rgb(0.08, 0.18, 0.42),
+  white:  rgb(1, 1, 1),
+  black:  rgb(0, 0, 0),
+  dark:   rgb(0.15, 0.15, 0.15),
+  gray:   rgb(0.45, 0.45, 0.45),
+  light:  rgb(0.82, 0.82, 0.82),
+  easy:   rgb(0.10, 0.60, 0.28),
+  medium: rgb(0.75, 0.52, 0.0),
+  hard:   rgb(0.78, 0.12, 0.12),
+  orange: rgb(0.88, 0.38, 0.08),
 };
 
-// ── Text wrapper ────────────────────────────────────────────
-function wrapText(text: string, font: PDFFont, size: number, maxW: number): string[] {
-  // Sanitize: remove non-latin characters that pdf-lib can't encode
-  const safe  = text.replace(/[^\x00-\xFF]/g, '?');
-  const words = safe.split(' ');
+// Safe text — strip non-latin chars
+const safe = (t: unknown): string =>
+  String(t ?? '').replace(/[^\x20-\x7E]/g, '?').trim();
+
+// Wrap text to max width
+const wrap = (text: string, font: PDFFont, size: number, maxW: number): string[] => {
+  const words = safe(text).split(' ');
   const lines: string[] = [];
   let line = '';
-
-  for (const word of words) {
-    const test = line ? `${line} ${word}` : word;
+  for (const w of words) {
+    const test = line ? `${line} ${w}` : w;
     try {
       if (font.widthOfTextAtSize(test, size) > maxW && line) {
-        lines.push(line);
-        line = word;
-      } else {
-        line = test;
-      }
-    } catch {
-      line = test; // fallback if width check fails
-    }
+        lines.push(line); line = w;
+      } else { line = test; }
+    } catch { line = test; }
   }
   if (line) lines.push(line);
   return lines.length ? lines : [''];
-}
+};
 
-// ── Safe text draw (never throws) ───────────────────────────
-function drawText(
-  page: PDFPage,
-  text: string,
-  x: number,
-  y: number,
-  font: PDFFont,
-  size: number,
-  color = C.dark
-): void {
-  try {
-    const safe = String(text ?? '').replace(/[^\x00-\xFF]/g, '?');
-    page.drawText(safe, { x, y, size, font, color });
-  } catch (e) {
-    logger.warn(`PDF drawText failed: ${e}`);
-  }
-}
-
-// ── Main export ─────────────────────────────────────────────
 export const generateExamPDF = async (
   paper: IGeneratedPaper,
   assignment: IAssignment
 ): Promise<Uint8Array> => {
-  logger.info(`Generating PDF for assignment: ${assignment._id}`);
+  logger.info(`PDF generation start: ${assignment._id}`);
 
-  const doc  = await PDFDocument.create();
-  doc.setTitle(String(assignment.title ?? 'Exam Paper'));
-  doc.setAuthor('VedaAI');
-
+  const doc     = await PDFDocument.create();
   const bold    = await doc.embedFont(StandardFonts.HelveticaBold);
   const regular = await doc.embedFont(StandardFonts.Helvetica);
   const italic  = await doc.embedFont(StandardFonts.HelveticaOblique);
 
-  // State
   let page = doc.addPage([PAGE_W, PAGE_H]);
-  let y    = PAGE_H - MARGIN;
+  let y    = PAGE_H - MT;
 
-  // ── Helpers ──────────────────────────────────────────────
   const newPage = () => {
     page = doc.addPage([PAGE_W, PAGE_H]);
-    y    = PAGE_H - MARGIN;
+    y    = PAGE_H - MT;
   };
 
-  const checkSpace = (needed: number) => {
-    if (y - needed < MARGIN + 30) newPage();
+  const check = (need: number) => { if (y - need < MB + 20) newPage(); };
+
+  const txt = (
+    t: string, x: number, yPos: number,
+    font: PDFFont, size: number,
+    color = C.dark
+  ) => {
+    try { page.drawText(safe(t), { x, y: yPos, size, font, color }); }
+    catch { /* skip if fails */ }
   };
 
-  const drawLine = (yPos: number, thickness = 0.5, color = C.light) => {
-    page.drawLine({
-      start: { x: MARGIN, y: yPos },
-      end:   { x: PAGE_W - MARGIN, y: yPos },
-      thickness,
-      color,
-    });
+  const hline = (yPos: number, x1 = ML, x2 = PAGE_W - MR, thickness = 0.5, color = C.light) => {
+    page.drawLine({ start: { x: x1, y: yPos }, end: { x: x2, y: yPos }, thickness, color });
   };
 
-  const drawWrapped = (
-    text: string,
-    x: number,
-    startY: number,
-    font: PDFFont,
-    size: number,
-    color = C.dark,
-    maxW = CONTENT,
-    lineH = size + 4
+  const wrapDraw = (
+    text: string, x: number, startY: number,
+    font: PDFFont, size: number,
+    maxW: number, lineH: number,
+    color = C.dark
   ): number => {
-    const lines = wrapText(text, font, size, maxW);
+    const lines = wrap(text, font, size, maxW);
     let cy = startY;
     for (const ln of lines) {
-      checkSpace(lineH + 4);
-      drawText(page, ln, x, cy, font, size, color);
+      check(lineH + 2);
+      txt(ln, x, cy, font, size, color);
       cy -= lineH;
     }
     return cy;
   };
 
-  // ── Header ───────────────────────────────────────────────
-  // Top color bar
-  page.drawRectangle({ x: MARGIN, y: y - 4, width: CONTENT, height: 5, color: C.navy });
-  y -= 18;
+  // ── Extract class from instructions ──────────────────────
+  const classMatch = (assignment.instructions ?? '').match(/Class:\s*([^\n]+)/);
+  const className  = classMatch ? classMatch[1].trim() : '';
+
+  // ── HEADER ───────────────────────────────────────────────
+  // Top accent bar
+  page.drawRectangle({ x: ML, y: y - 3, width: CW, height: 4, color: C.navy });
+  y -= 14;
 
   // Institution line
-  drawText(page, 'VEDAAI ASSESSMENT PLATFORM', MARGIN, y, regular, 8, C.gray);
-  y -= 20;
+  txt('VEDAAI ASSESSMENT PLATFORM', ML, y, regular, 7.5, C.gray);
+  y -= 16;
 
   // Title (centered)
-  const title     = String(assignment.title ?? 'Exam Paper').toUpperCase();
-  const titleLines = wrapText(title, bold, 16, CONTENT);
+  const title = safe(assignment.title).toUpperCase();
+  const titleLines = wrap(title, bold, 16, CW);
   for (const ln of titleLines) {
     try {
       const w = bold.widthOfTextAtSize(ln, 16);
-      drawText(page, ln, (PAGE_W - w) / 2, y, bold, 16, C.navy);
-    } catch {
-      drawText(page, ln, MARGIN, y, bold, 16, C.navy);
-    }
-    y -= 22;
+      txt(ln, (PAGE_W - w) / 2, y, bold, 16, C.navy);
+    } catch { txt(ln, ML, y, bold, 16, C.navy); }
+    y -= 21;
   }
 
-  // Subject / Topic (centered)
-  const subLine = `Subject: ${assignment.subject ?? ''}   |   Topic: ${assignment.topic ?? ''}`;
+  // Subject / Topic / Class row
+  const meta = [
+    `Subject: ${safe(assignment.subject)}`,
+    `Topic: ${safe(assignment.topic)}`,
+    className ? `Class: ${className}` : '',
+  ].filter(Boolean).join('   |   ');
   try {
-    const sw = regular.widthOfTextAtSize(subLine, 10);
-    drawText(page, subLine, (PAGE_W - sw) / 2, y, regular, 10, C.gray);
-  } catch {
-    drawText(page, subLine, MARGIN, y, regular, 10, C.gray);
-  }
-  y -= 18;
+    const mw = regular.widthOfTextAtSize(meta, 9.5);
+    txt(meta, (PAGE_W - mw) / 2, y, regular, 9.5, C.gray);
+  } catch { txt(meta, ML, y, regular, 9.5, C.gray); }
+  y -= 16;
 
-  drawLine(y);
-  y -= 14;
+  hline(y, ML, PAGE_W - MR, 0.8, C.light);
+  y -= 12;
 
   // Marks / Date row
-  const dueDate = assignment.dueDate
+  const dueStr = assignment.dueDate
     ? new Date(assignment.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })
     : '';
-  drawText(page, `Total Marks: ${paper.totalMarks ?? 0}`, MARGIN, y, bold, 10);
-  drawText(page, `Total Questions: ${paper.totalQuestions ?? 0}`, MARGIN + 160, y, regular, 10, C.gray);
-  if (dueDate) drawText(page, `Due: ${dueDate}`, PAGE_W - MARGIN - 130, y, regular, 10, C.gray);
-  y -= 20;
+  txt(`Total Marks: ${paper.totalMarks ?? 0}`, ML, y, bold, 9.5);
+  txt(`Total Questions: ${paper.totalQuestions ?? 0}`, ML + 130, y, regular, 9.5, C.gray);
+  if (dueStr) txt(`Due: ${dueStr}`, PAGE_W - MR - 110, y, regular, 9.5, C.gray);
+  y -= 16;
 
   // Student info box
-  page.drawRectangle({ x: MARGIN, y: y - 58, width: CONTENT, height: 62, color: C.bg });
-  drawText(page, 'Name: ___________________________', MARGIN + 10, y - 14, regular, 9);
-  drawText(page, 'Roll No: ________________', MARGIN + 260, y - 14, regular, 9);
-  drawText(page, 'Section: ________________', MARGIN + 10, y - 34, regular, 9);
-  drawText(page, 'Date: ___________________', MARGIN + 260, y - 34, regular, 9);
-  y -= 72;
+  const boxH = 52;
+  page.drawRectangle({ x: ML, y: y - boxH, width: CW, height: boxH, color: rgb(0.97, 0.97, 0.97) });
+  page.drawLine({ start: { x: ML, y: y - boxH }, end: { x: ML + CW, y: y - boxH }, thickness: 0.6, color: C.light });
+  page.drawLine({ start: { x: ML, y }, end: { x: ML + CW, y }, thickness: 0.6, color: C.light });
+  page.drawLine({ start: { x: ML, y: y - boxH }, end: { x: ML, y }, thickness: 0.6, color: C.light });
+  page.drawLine({ start: { x: ML + CW, y: y - boxH }, end: { x: ML + CW, y }, thickness: 0.6, color: C.light });
+  txt('Name: ___________________________', ML + 8, y - 14, regular, 8.5);
+  txt('Roll No: ________________',         ML + 230, y - 14, regular, 8.5);
+  txt('Section: ________________',         ML + 8,   y - 32, regular, 8.5);
+  txt('Date: ___________________',          ML + 230, y - 32, regular, 8.5);
+  y -= boxH + 10;
 
-  // Instructions
-  if (assignment.instructions) {
-    const instr = String(assignment.instructions).slice(0, 300);
-    drawText(page, 'General Instructions:', MARGIN, y, bold, 9, C.navy);
-    y -= 13;
-    y = drawWrapped(instr, MARGIN + 8, y, italic, 8, C.gray, CONTENT - 8, 12);
+  // General instructions (only real ones, not class/breakdown)
+  const realInstr = (assignment.instructions ?? '')
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l && !l.startsWith('Class:') && !l.startsWith('Question breakdown:'))
+    .join(' ')
+    .slice(0, 200);
+
+  if (realInstr) {
+    txt('Instructions: ', ML, y, bold, 8, C.navy);
+    y = wrapDraw(realInstr, ML + 70, y, italic, 8, CW - 70, 11, C.gray);
     y -= 4;
   }
 
-  drawLine(y, 1.5, C.navy);
-  y -= 18;
+  hline(y, ML, PAGE_W - MR, 1.2, C.navy);
+  y -= 12;
 
-  // ── Sections ─────────────────────────────────────────────
+  // ── SECTIONS ─────────────────────────────────────────────
   let qNum = 1;
 
   for (const section of paper.sections) {
-    checkSpace(50);
+    check(40);
 
-    // Section header bar
-    page.drawRectangle({ x: MARGIN, y: y - 20, width: CONTENT, height: 24, color: C.navy });
-    drawText(page, String(section.title ?? '').toUpperCase(), MARGIN + 8, y - 14, bold, 11, C.white);
-    const marksLabel = `[${section.totalMarks ?? 0} Marks]`;
+    // Section header — navy bar
+    page.drawRectangle({ x: ML, y: y - 20, width: CW, height: 22, color: C.navy });
+    txt(safe(section.title).toUpperCase(), ML + 8, y - 14, bold, 10.5, C.white);
+    const marksLbl = `[${section.totalMarks ?? 0} Marks]`;
     try {
-      const mw = bold.widthOfTextAtSize(marksLabel, 9);
-      drawText(page, marksLabel, PAGE_W - MARGIN - mw - 6, y - 14, bold, 9, C.white);
-    } catch {
-      drawText(page, marksLabel, PAGE_W - MARGIN - 60, y - 14, bold, 9, C.white);
-    }
-    y -= 30;
+      const mw = bold.widthOfTextAtSize(marksLbl, 9);
+      txt(marksLbl, PAGE_W - MR - mw - 6, y - 14, bold, 9, C.white);
+    } catch { txt(marksLbl, PAGE_W - MR - 55, y - 14, bold, 9, C.white); }
+    y -= 26;
 
-    // Section instruction
+    // Section instruction (italic, small)
     if (section.instruction) {
-      y = drawWrapped(String(section.instruction), MARGIN, y, italic, 8, C.gray, CONTENT, 12);
-      y -= 6;
+      txt(safe(section.instruction), ML, y, italic, 8, C.gray);
+      y -= 12;
     }
 
-    // Questions
+    // ── Questions — NO gaps ──────────────────────────────
     for (const q of section.questions) {
-      const qText   = String(q.question ?? '');
-      const qLines  = wrapText(qText, regular, 9.5, CONTENT - 60);
-      const optH    = q.options?.length ? q.options.length * 13 : 0;
-      const answerH = q.type === 'long_answer' ? 80 : q.type === 'short_answer' ? 40 : 0;
-      const needed  = qLines.length * 14 + optH + answerH + 20;
-      checkSpace(needed);
+      const qText  = safe(q.question);
+      const qLines = wrap(qText, regular, 9.5, CW - 72);
+      const optH   = q.options?.length ? q.options.length * 12 : 0;
+      const needed = qLines.length * 13 + optH + 8;
+      check(needed);
 
-      // Question number circle
-      page.drawCircle({ x: MARGIN + 9, y: y - 1, size: 8, color: C.navy });
-      drawText(page, String(qNum), MARGIN + 6, y - 4, bold, 7, C.white);
+      // Question number circle (small)
+      page.drawCircle({ x: ML + 8, y: y - 1, size: 7, color: C.navy });
+      txt(String(qNum), qNum < 10 ? ML + 5.5 : ML + 3.5, y - 4, bold, 6.5, C.white);
 
       // Difficulty badge
-      const diffColor = q.difficulty === 'easy' ? C.green : q.difficulty === 'hard' ? C.red : C.amber;
-      const diffLabel = (q.difficulty ?? 'medium').charAt(0).toUpperCase() + (q.difficulty ?? 'medium').slice(1);
+      const diffColor = q.difficulty === 'easy' ? C.easy : q.difficulty === 'hard' ? C.hard : C.medium;
+      const diffLbl   = (q.difficulty ?? 'medium').charAt(0).toUpperCase() + (q.difficulty ?? 'medium').slice(1);
       try {
-        const dw = bold.widthOfTextAtSize(diffLabel, 6.5) + 6;
-        page.drawRectangle({ x: PAGE_W - MARGIN - dw - 38, y: y - 8, width: dw, height: 11, color: diffColor });
-        drawText(page, diffLabel, PAGE_W - MARGIN - dw - 35, y - 3, bold, 6.5, C.white);
-      } catch { /* skip badge if it fails */ }
+        const bw = bold.widthOfTextAtSize(diffLbl, 6) + 6;
+        page.drawRectangle({ x: PAGE_W - MR - bw - 28, y: y - 8, width: bw, height: 11, color: diffColor });
+        txt(diffLbl, PAGE_W - MR - bw - 25, y - 3, bold, 6, C.white);
+      } catch { /* skip badge */ }
 
-      // Marks
-      drawText(page, `[${q.marks ?? 1}M]`, PAGE_W - MARGIN - 30, y, bold, 8, C.orange);
+      // Marks label
+      const mLbl = `[${q.marks ?? 1}M]`;
+      try {
+        const mlw = bold.widthOfTextAtSize(mLbl, 8);
+        txt(mLbl, PAGE_W - MR - mlw, y, bold, 8, C.orange);
+      } catch { txt(mLbl, PAGE_W - MR - 22, y, bold, 8, C.orange); }
 
       // Question text
-      const qStartX = MARGIN + 22;
-      const qMaxW   = CONTENT - 65;
       let qy = y;
       for (const ln of qLines) {
-        drawText(page, ln, qStartX, qy, regular, 9.5);
-        qy -= 14;
+        txt(ln, ML + 20, qy, regular, 9.5);
+        qy -= 13;
       }
-      y = qy - 2;
+      y = qy - 1;
 
-      // MCQ options
+      // MCQ options — 2 per row, compact
       if (q.options && q.options.length > 0) {
-        for (const opt of q.options) {
-          checkSpace(14);
-          y = drawWrapped(String(opt ?? ''), MARGIN + 30, y, regular, 8.5, C.gray, CONTENT - 50, 13);
+        const half = Math.ceil(q.options.length / 2);
+        for (let i = 0; i < half; i++) {
+          const left  = q.options[i];
+          const right = q.options[i + half];
+          txt(safe(left),  ML + 22, y, regular, 8.5, C.gray);
+          if (right) txt(safe(right), ML + 22 + CW / 2, y, regular, 8.5, C.gray);
+          y -= 12;
         }
       }
 
-      // Answer lines
-      if (q.type === 'short_answer') {
-        y -= 4;
-        for (let i = 0; i < 3; i++) {
-          checkSpace(16);
-          drawLine(y, 0.4, C.light);
-          y -= 14;
-        }
-      } else if (q.type === 'long_answer') {
-        y -= 4;
-        for (let i = 0; i < 6; i++) {
-          checkSpace(16);
-          drawLine(y, 0.4, C.light);
-          y -= 14;
-        }
-      }
+      // Thin separator line between questions (no gap)
+      hline(y - 1, ML + 18, PAGE_W - MR, 0.35, rgb(0.88, 0.88, 0.88));
+      y -= 4; // tiny 4pt gap — just enough for visual separation
 
-      y -= 10;
       qNum++;
     }
 
-    y -= 8;
+    y -= 6; // small gap after section
   }
 
-  // ── Footer on every page ─────────────────────────────────
+  // End of paper
+  check(20);
+  try {
+    const epw = bold.widthOfTextAtSize('— End of Question Paper —', 8.5);
+    txt('— End of Question Paper —', (PAGE_W - epw) / 2, y - 8, bold, 8.5, C.gray);
+  } catch { txt('End of Question Paper', ML, y - 8, bold, 8.5, C.gray); }
+
+  // ── FOOTER on every page ─────────────────────────────────
   const pages = doc.getPages();
-  pages.forEach((p, idx) => {
+  pages.forEach((p, i) => {
     try {
-      p.drawText(`Page ${idx + 1} of ${pages.length}`, {
-        x: PAGE_W / 2 - 25, y: 22, size: 7, font: regular, color: C.gray,
+      p.drawText(`Page ${i + 1} of ${pages.length}`, {
+        x: PAGE_W / 2 - 22, y: 18, size: 7, font: regular, color: C.gray,
       });
       p.drawText('Generated by VedaAI', {
-        x: MARGIN, y: 22, size: 7, font: regular, color: C.gray,
+        x: ML, y: 18, size: 7, font: regular, color: C.gray,
       });
-    } catch { /* skip footer if it fails */ }
+    } catch { /* skip */ }
   });
 
   const bytes = await doc.save();
-  logger.info(`PDF generated: ${bytes.length} bytes, ${pages.length} pages`);
+  logger.info(`PDF ready: ${bytes.length} bytes, ${pages.length} page(s)`);
   return bytes;
 };

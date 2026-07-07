@@ -11,8 +11,6 @@ export const getSocket = (): Socket => {
     const url = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
 
     socket = io(url, {
-      // Start with polling — works through Vercel/proxies/firewalls
-      // Socket.IO will auto-upgrade to websocket if possible
       transports: ['polling', 'websocket'],
       autoConnect: true,
       reconnection: true,
@@ -20,7 +18,7 @@ export const getSocket = (): Socket => {
       reconnectionDelay: 2000,
       timeout: 20000,
       forceNew: false,
-      withCredentials: true,
+      // Do NOT set withCredentials for socket — causes CORS issues with wildcard origin
     });
 
     socket.on('connect', () => {

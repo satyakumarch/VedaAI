@@ -12,9 +12,14 @@ let io: SocketServer | null = null;
 export const initSocketServer = (httpServer: HttpServer): SocketServer => {
   io = new SocketServer(httpServer, {
     cors: {
-      origin: '*',
+      // Dynamic origin — required when credentials:false but we want specific origins
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true); // allow non-browser clients
+        // Allow any origin — credentials:false so wildcard is OK
+        callback(null, true);
+      },
       methods: ['GET', 'POST'],
-      credentials: true,
+      credentials: false, // MUST be false to avoid CORS error with origin:*
     },
     transports: ['polling', 'websocket'],
     pingTimeout: 60000,
@@ -25,7 +30,6 @@ export const initSocketServer = (httpServer: HttpServer): SocketServer => {
   io.on('connection', (socket: Socket) => {
     logger.info(`Socket connected: ${socket.id}`);
 
-    // Client joins a room for their assignment
     socket.on('join_assignment', (assignmentId: string) => {
       socket.join(`assignment:${assignmentId}`);
       logger.debug(`Socket ${socket.id} joined room: assignment:${assignmentId}`);
@@ -49,7 +53,6 @@ export const getIO = (): SocketServer => {
   return io;
 };
 
-// Emit generation events to a specific assignment room
 export const emitToAssignment = (
   assignmentId: string,
   event: string,

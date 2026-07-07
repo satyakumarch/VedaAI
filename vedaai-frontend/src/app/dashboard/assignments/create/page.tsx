@@ -218,7 +218,7 @@ export default function CreateAssignmentPage() {
         </div>
 
         {/* ── Bottom nav bar ── */}
-        <div className="fixed bottom-0 left-[220px] right-0 flex items-center justify-between px-8 py-4 bg-card border-t border-border z-10">
+        <div className="fixed bottom-0 left-0 lg:left-[220px] right-0 flex items-center justify-between px-4 sm:px-8 py-4 bg-card border-t border-border z-10">
           <button onClick={() => router.back()}
             className="flex items-center gap-2 px-6 py-2.5 border border-border rounded-full text-sm font-semibold hover:bg-accent transition-colors">
             <ArrowLeft className="w-4 h-4" /> Previous

@@ -80,12 +80,13 @@ const parseResponse = (raw: string): IGeneratedPaperData => {
 };
 
 // ── Groq — tries all available models ───────────────────────
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 const tryGroq = async (prompt: string): Promise<string> => {
   const key = process.env.GROQ_API_KEY;
   if (!key) throw new Error('No GROQ_API_KEY');
 
   const groq   = new Groq({ apiKey: key });
-  // All available free Groq models — tries each until one works
   const models = [
     'llama-3.3-70b-versatile',
     'llama-3.1-8b-instant',
@@ -106,9 +107,13 @@ const tryGroq = async (prompt: string): Promise<string> => {
       const msg = e instanceof Error ? e.message : String(e);
       logger.warn(`Groq/${model} failed: ${msg}`);
       errors.push(`${model}: ${msg}`);
-      // Only skip to next model on rate limit errors
       const isRateLimit = msg.includes('429') || msg.toLowerCase().includes('rate') || msg.toLowerCase().includes('too many');
-      if (!isRateLimit) break; // non-rate-limit error — stop trying Groq
+      if (isRateLimit) {
+        // Wait 2 seconds before trying next model
+        await sleep(2000);
+        continue;
+      }
+      break;
     }
   }
   throw new Error(`Groq failed: ${errors.join(' | ')}`);

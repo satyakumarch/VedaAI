@@ -28,12 +28,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <MobileMenuContext.Provider value={{ openMenu: () => setSidebarOpen(true) }}>
       <div className="flex h-screen overflow-hidden bg-background">
-        {/* Desktop sidebar — always visible lg+ */}
-        <div className="hidden lg:flex lg:flex-shrink-0">
-          <Sidebar />
-        </div>
 
-        {/* Mobile sidebar drawer */}
+        {/* Single Sidebar instance — handles both desktop (always visible) and mobile (drawer) */}
         <Sidebar
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}

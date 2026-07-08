@@ -104,3 +104,40 @@ body {
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
 }
+
+/* ── Black & White theme ── */
+.theme-bw {
+  --background:          0 0% 100%;
+  --foreground:          0 0% 0%;
+  --card:                0 0% 100%;
+  --card-foreground:     0 0% 0%;
+  --popover:             0 0% 100%;
+  --popover-foreground:  0 0% 0%;
+  --primary:             0 0% 0%;
+  --primary-foreground:  0 0% 100%;
+  --secondary:           0 0% 93%;
+  --secondary-foreground:0 0% 0%;
+  --muted:               0 0% 93%;
+  --muted-foreground:    0 0% 40%;
+  --accent:              0 0% 88%;
+  --accent-foreground:   0 0% 0%;
+  --destructive:         0 72% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --border:              0 0% 78%;
+  --input:               0 0% 78%;
+  --ring:                0 0% 0%;
+  --sidebar-bg:          0 0% 97%;
+}
+
+/* Override orange accents in B&W mode */
+.theme-bw .bg-orange-500 { background-color: #111 !important; }
+.theme-bw .bg-orange-100 { background-color: #f0f0f0 !important; }
+.theme-bw .bg-orange-50  { background-color: #f8f8f8 !important; }
+.theme-bw .text-orange-500,
+.theme-bw .text-orange-600,
+.theme-bw .text-orange-400 { color: #111 !important; }
+.theme-bw .border-orange-200,
+.theme-bw .border-orange-300,
+.theme-bw .border-orange-400 { border-color: #999 !important; }
+.theme-bw .from-orange-500,
+.theme-bw .to-amber-400  { --tw-gradient-from: #111; --tw-gradient-to: #555; }

@@ -67,24 +67,36 @@ export default function SettingsPage() {
       icon: Palette,
       title: 'Appearance',
       content: (
-        <div className="space-y-3">
+        <div className="space-y-4">
           <p className="text-sm text-muted-foreground">Choose your preferred theme</p>
-          <div className="flex gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { value: 'light', label: 'Light', icon: Sun },
-              { value: 'dark',  label: 'Dark',  icon: Moon },
-              { value: 'system',label: 'System', icon: Palette },
+              { value: 'light',  label: 'Light',         icon: Sun,     preview: 'bg-white border-gray-200' },
+              { value: 'dark',   label: 'Dark',          icon: Moon,    preview: 'bg-gray-900 border-gray-700' },
+              { value: 'system', label: 'System',        icon: Palette, preview: 'bg-gradient-to-br from-white to-gray-900 border-gray-400' },
+              { value: 'bw',     label: 'Black & White', icon: Sun,     preview: 'bg-white border-black' },
             ].map(t => {
               const Icon = t.icon;
               return (
-                <button key={t.value} onClick={() => setTheme(t.value)}
-                  className={cn('flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all',
+                <button key={t.value} onClick={() => {
+                  if (t.value === 'bw') {
+                    setTheme('light');
+                    document.documentElement.classList.add('theme-bw');
+                    localStorage.setItem('vedaai-theme-bw', 'true');
+                  } else {
+                    document.documentElement.classList.remove('theme-bw');
+                    localStorage.removeItem('vedaai-theme-bw');
+                    setTheme(t.value);
+                  }
+                }}
+                  className={cn('flex flex-col items-center gap-2 p-3 rounded-xl border-2 text-sm font-medium transition-all',
                     theme === t.value
                       ? 'border-orange-400 bg-orange-50 dark:bg-orange-950/20 text-orange-600'
                       : 'border-border hover:border-orange-300 text-muted-foreground hover:text-foreground'
                   )}>
-                  <Icon className="w-4 h-4" />
-                  {t.label}
+                  {/* Color preview */}
+                  <div className={cn('w-10 h-10 rounded-lg border-2', t.preview)} />
+                  <span className="text-xs">{t.label}</span>
                 </button>
               );
             })}
